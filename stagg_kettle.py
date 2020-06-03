@@ -4,6 +4,7 @@ import struct
 from bluepy import btle
 import paho.mqtt.client as mqtt
 from enum import IntEnum
+import json
 import signal
 from functools import partial
 import sys
@@ -108,7 +109,7 @@ class StaggKettle:
         @power.setter
         def power(self, value):
             if self._power != value:
-                self.client.publish("home/kitchen/kettle", value)
+                self.client.publish("homeassistant/switch/kettle/state", value)
                 self._on_change()
             self._power = value
 
@@ -119,7 +120,7 @@ class StaggKettle:
         @target_temp.setter
         def target_temp(self, value):
             if self._target_temp != value:
-                self.client.publish("home/kitchen/kettle/temperature/target", value)
+                self.client.publish("kitchen/kettle/temperature/target", value)
                 self._on_change()
             self._target_temp = value
 
@@ -135,7 +136,7 @@ class StaggKettle:
                 value = "--"
 
             if self._current_temp != value:
-                self.client.publish("home/kitchen/kettle/temperature", value)
+                self.client.publish("homeassistant/sensor/kettle/temperature", value)
                 self._on_change()
             self._current_temp = value
 
@@ -148,7 +149,7 @@ class StaggKettle:
             scale = '°F' if value == 1 else '°C'
 
             if self._target_temp_scale != scale:
-                self.client.publish("home/kitchen/kettle/temperature/target/scale", scale)
+                self.client.publish("kitchen/kettle/temperature/target/scale", scale)
                 self._on_change()
             self._target_temp_scale = scale
             
@@ -162,7 +163,7 @@ class StaggKettle:
             scale = '°F' if value == 1 else '°C'
 
             if self._current_temp_scale != scale:
-                self.client.publish("home/kitchen/kettle/temperature/scale", scale)
+                self.client.publish("kitchen/kettle/temperature/scale", scale)
                 self._on_change()
             self._current_temp_scale = scale
             
@@ -205,6 +206,7 @@ class StaggKettle:
         self.connected = False
         self.current_state = "off"
         self.client = mqtt.Client()
+        self.setup_autodiscovery()
 
 
     def connect(self):
@@ -219,7 +221,12 @@ class StaggKettle:
 
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
-        self.client.will_set("home/kitchen/kettle/available", "offline", 0, True)
+        self.client.will_set("kitchen/kettle/available", "offline", 0, True)
+
+        if config.MQTT_PASS:
+            self.client.username_pw_set(username=config.MQTT_USER, password=config.MQTT_PASS)
+
+
         self.client.connect(config.MQTT_BROKER, config.MQTT_PORT, 60)
 
         AsyncioHelper(self.loop, self.client)
@@ -229,10 +236,10 @@ class StaggKettle:
     
     # The callback for when the client receives a CONNACK response from the server.
     def on_connect(self, client, userdata, flags, rc):
-        client.publish("home/kitchen/kettle/available", "online", 0, True)
+        client.publish("kitchen/kettle/available", "online", 0, True)
 
-        client.subscribe("home/kitchen/kettle/set")
-        client.subscribe("home/kitchen/kettle/temperature/set")
+        client.subscribe("homeassistant/switch/kettle/set")
+        client.subscribe("kitchen/kettle/temperature/set")
         
 
     # The callback for when a PUBLISH message is received from the server.
@@ -243,7 +250,7 @@ class StaggKettle:
         elif payload == "off":
             self.power_off()
         
-        client.publish("home/kitchen/kettle", payload)
+        client.publish("homeassistant/switch/kettle/state", payload)
 
 
     def power_on(self):
@@ -275,6 +282,32 @@ class StaggKettle:
         target_temp = TARGET_TEMP_HDR + target_temp_body
         self.characteristics.write(target_temp)
 
+
+    def setup_autodiscovery(self):
+        if not self.connected:
+            self.connect()
+        
+        switch_config = {
+            "name": "Kettle",
+            "icon": "mdi:kettle",
+            "state_topic": "homeassistant/switch/kettle/state",
+            "command_topic": "homeassistant/switch/kettle/set",
+            "availability_topic": "kitchen/kettle/available",
+            "payload_on": "on",
+            "payload_off": "off"
+        }
+
+        sensor_config = {
+            "name" : "Kettle Temperature",
+            "device_class": "temperature",
+            "state_topic" : "homeassistant/sensor/kettle/temperature", 
+            "availability_topic": "kitchen/kettle/available",
+            "unit_of_measurement": "°F",
+            "expire_after": 300
+        }
+
+        self.client.publish("homeassistant/switch/kettle/config", json.dumps(switch_config))
+        self.client.publish("homeassistant/sensor/kettle/config", json.dumps(sensor_config))
 
     async def main_loop(self):
         self.connect()
