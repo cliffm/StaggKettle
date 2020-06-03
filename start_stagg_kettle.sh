@@ -6,5 +6,5 @@ if ((`pgrep -fc stagg_kettle.py` >= 1)); then
 fi
 
 source /home/cliffm/stagg_kettle/bin/activate
-/home/cliffm/src/stagg_kettle.py > /dev/null
+/home/cliffm/src/StaggKettle/stagg_kettle.py > /dev/null
 
