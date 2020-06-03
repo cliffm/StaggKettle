@@ -1,0 +1,5 @@
+KETTLE_ADDRESS = "00:01:02:03:04:05"
+MQTT_BROKER = "localhost"
+MQTT_PORT = 1883
+MQTT_USER = "mqtt_user"
+MQTT_PASS = "mqtt_password"
