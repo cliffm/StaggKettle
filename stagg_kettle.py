@@ -306,8 +306,8 @@ class StaggKettle:
             "expire_after": 300
         }
 
-        self.client.publish("homeassistant/switch/kettle/config", json.dumps(switch_config))
-        self.client.publish("homeassistant/sensor/kettle/config", json.dumps(sensor_config))
+        self.client.publish("homeassistant/switch/kettle/config", json.dumps(switch_config), 0, True)
+        self.client.publish("homeassistant/sensor/kettle/config", json.dumps(sensor_config), 0, True)
 
     async def main_loop(self):
         self.connect()
