@@ -132,8 +132,6 @@ class StaggKettle:
         def current_temp(self, value):
             # valid values are 40 - 100 C, or 104 - 212 F
             # normally shows 32 when off
-            if value < 40:
-                value = "--"
 
             if self._current_temp != value:
                 self.client.publish("homeassistant/sensor/kettle/temperature", value)
